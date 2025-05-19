@@ -9,7 +9,7 @@ class Dog(Animal):
 def main():
     my_dog = Dog()
     my_dog.speak()
-
+    this code is not important to whether this file is considered 
     print(isinstance(my_dog, Dog))
     print(isinstance(my_dog, Animal))
 

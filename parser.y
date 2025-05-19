@@ -1,89 +1,116 @@
 %{
 #include <stdio.h>
 #include <stdlib.h>
-#include <string.h>
-
-// OOP detection flags
-int found_class  = 0;
-int found_method = 0;
-int uses_self    = 0;
 
 void yyerror(const char *s);
 int yylex(void);
+
+typedef struct {
+    char *str;
+    int num;
+} YYSTYPE;
+
+#define YYSTYPE YYSTYPE
+
 %}
 
 %union {
-    char* str;
+    char *str;
+    int num;
 }
 
-%token <str> IDENTIFIER OTHER
-%token CLASS DEF SELF COLON LPAREN RPAREN NEWLINE
+%token <str> IDENTIFIER
+%token <num> NUMBER
+%token CLASS DEF SELF PASS RETURN
+%token INDENT DEDENT NEWLINE
 
-%start program
+%left '='
+%left '.'
 
 %%
 
 program:
-    statements {
-        printf("\n--- Analysis Result ---\n");
-        if (found_class && found_method && uses_self) {
-            printf("✅ OOP code detected.\n");
-        } else {
-            printf("❌ Not object-oriented.\n");
-            if (!found_class)  printf("No class found.\n");
-            if (!found_method) printf("No method with self found.\n");
-            if (!uses_self)    printf("Self not used in method definitions.\n");
-        }
-    }
-;
-
-statements:
-      /* empty input OK */
-    | statements statement
-;
-
-statement:
-      class_def NEWLINE
-    | method_def NEWLINE
-    | other_line NEWLINE   /* swallow anything else */
-    | NEWLINE              /* blank line */
-;
+    /* empty */
+    | program class_def
+    ;
 
 class_def:
-    CLASS IDENTIFIER COLON {
-        found_class = 1;
-    }
-    | CLASS IDENTIFIER LPAREN IDENTIFIER RPAREN COLON {
-        found_class = 1;
-    }
-;
+    CLASS IDENTIFIER inheritance_opt ':' NEWLINE INDENT class_suite DEDENT
+    ;
 
-method_def:
-    DEF IDENTIFIER LPAREN SELF RPAREN COLON {
-        found_method = 1;
-        uses_self    = 1;
-    }
-;
+inheritance_opt:
+    /* empty */
+    | '(' base_class_list ')'
+    ;
 
-other_line:
-      other_line other_line_token
-    | other_line_token
-;
+base_class_list:
+    IDENTIFIER
+    | base_class_list ',' IDENTIFIER
+    ;
 
-other_line_token:
-      OTHER
-    | IDENTIFIER
-    | COLON
-    | LPAREN
-    | RPAREN
-;
+class_suite:
+    /* empty */
+    | class_suite class_stmt
+    ;
+
+class_stmt:
+    func_def
+    | assignment
+    | PASS NEWLINE
+    ;
+
+func_def:
+    DEF IDENTIFIER '(' parameters_opt ')' ':' NEWLINE INDENT func_suite DEDENT
+    ;
+
+parameters_opt:
+    /* empty */
+    | parameters
+    ;
+
+parameters:
+    IDENTIFIER
+    | parameters ',' IDENTIFIER
+    ;
+
+func_suite:
+    /* empty */
+    | func_suite func_stmt
+    ;
+
+func_stmt:
+    assignment
+    | RETURN expression NEWLINE
+    | PASS NEWLINE
+    ;
+
+assignment:
+    IDENTIFIER '=' expression NEWLINE
+    ;
+
+expression:
+    IDENTIFIER
+    | NUMBER
+    | expression '.' IDENTIFIER
+    | IDENTIFIER '(' arguments_opt ')'
+    ;
+
+arguments_opt:
+    /* empty */
+    | arguments
+    ;
+
+arguments:
+    expression
+    | arguments ',' expression
+    ;
 
 %%
 
 void yyerror(const char *s) {
-    fprintf(stderr, "Syntax error: %s\n", s);
+    fprintf(stderr, "Error: %s\n", s);
 }
 
-int main(void) {
+int main() {
     return yyparse();
 }
