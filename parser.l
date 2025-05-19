@@ -1,5 +1,5 @@
 %{
-#include "y.tab.h"  // yacc-generated header with token definitions
+#include "y.tab.h"  
 #include <string.h>
 #include <stdlib.h>
 
