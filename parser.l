@@ -63,7 +63,7 @@ WS          [ \t]+
 
 {NEWLINE} {
     /* Handle indentation on new lines */
-    int spaces = count_leading_spaces(yytext + yyleng);
+    int spaces = count_leading_spaces(yytext + 1);
     if (spaces > last_indent) {
         push_indent(spaces);
         last_indent = spaces;

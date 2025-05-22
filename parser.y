@@ -12,6 +12,7 @@ typedef struct {
 
 #define YYSTYPE YYSTYPE
 
+int oop_detected = 0;
 %}
 
 %union {
@@ -32,10 +33,20 @@ typedef struct {
 program:
     /* empty */
     | program class_def
+    | program func_def
+    | program assignment
+    ;
+
+element:
+    class_def
+    | func_def
+    | assignment
+    | PASS NEWLINE
     ;
 
 class_def:
     CLASS IDENTIFIER inheritance_opt ':' NEWLINE INDENT class_suite DEDENT
+    { oop_detected = 1; } 
     ;
 
 inheritance_opt:
@@ -112,5 +123,7 @@ void yyerror(const char *s) {
 }
 
 int main() {
-    return yyparse();
+    yyparse();
+    printf(oop_detected ? "✅ OOP code detected.\n" : "❌ Not object-oriented.\n");
+    return 0;
 }
