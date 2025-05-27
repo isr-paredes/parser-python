@@ -1,0 +1,49 @@
+# parser_runner.py
+
+import sys
+from parser import parser  # your yacc parser object from previous code
+
+def is_oop_code(parse_tree):
+    """
+    Recursively check if parse_tree contains any 'class_def' nodes.
+    """
+    if isinstance(parse_tree, tuple):
+        if parse_tree[0] == 'class_def':
+            return True
+        # Recursively check children
+        for child in parse_tree[1:]:
+            if isinstance(child, list):
+                for item in child:
+                    if is_oop_code(item):
+                        return True
+            else:
+                if is_oop_code(child):
+                    return True
+    elif isinstance(parse_tree, list):
+        for item in parse_tree:
+            if is_oop_code(item):
+                return True
+    return False
+
+def main(filename):
+    with open(filename, 'r') as f:
+        code = f.read()
+
+    # Parse the code
+    parse_result = parser.parse(code)
+
+    if parse_result is None:
+        print("Parsing failed or no parse tree generated.")
+        return
+
+    if is_oop_code(parse_result):
+        print(f"File '{filename}' contains OOP constructs (class definitions).")
+    else:
+        print(f"File '{filename}' does NOT contain OOP constructs.")
+
+if __name__ == '__main__':
+    if len(sys.argv) != 2:
+        print("Usage: python parser_runner.py <python_source_file>")
+        sys.exit(1)
+
+    main(sys.argv[1])
