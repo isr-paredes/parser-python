@@ -1,7 +1,7 @@
 # parser_runner.py
 
 import sys
-from parser import parser  # your yacc parser object from previous code
+from parser import Parser, lex  # Import the new Parser class and lex function
 
 def is_oop_code(parse_tree):
     """
@@ -20,8 +20,14 @@ def main(filename):
     with open(filename, 'r') as f:
         code = f.read()
 
-    # Parse the code
-    parse_result = parser.parse(code)
+    # Tokenize and parse the code
+    tokens = lex(code)
+    parser = Parser(tokens)
+    try:
+        parse_result = parser.parse()
+    except Exception as e:
+        print(f"Parsing failed: {e}")
+        return
 
     if parse_result is None:
         print("Parsing failed or no parse tree generated.")
