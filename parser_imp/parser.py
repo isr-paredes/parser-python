@@ -137,16 +137,15 @@ class Parser:
             bases.append(self.expect('IDENTIFIER'))
         return bases
 
-    # misc : IDENTIFIER | OTHER
+
     def misc(self):
-        if self.current_token.type == 'IDENTIFIER':
-            val = self.expect('IDENTIFIER')
-            return ('misc', val)
-        elif self.current_token.type == 'OTHER':
-            val = self.expect('OTHER')
-            return ('misc', val)
-        else:
-            self.error('Expected IDENTIFIER or OTHER')
+        """Consume tokens until next CLASS or EOF."""
+        tokens = []
+        while self.current_token.type not in ('CLASS', 'EOF'):
+            tokens.append(self.current_token.value)
+            self.advance()
+        # Return a misc node with the combined token values (optional)
+        return ('misc', ' '.join(tokens))
 
 # --- Example usage ---
 
