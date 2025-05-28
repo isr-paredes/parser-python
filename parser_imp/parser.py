@@ -1,197 +1,161 @@
-import ply.lex as lex
-import ply.yacc as yacc
-
+import re
 # --- Lexer ---
 
-tokens = (
-    'EQ',  # ==
-    'CLASS', 'DEF', 'IMPORT', 'FROM', 'RETURN', 'PASS', 'IF',
-    'IDENTIFIER', 'NUMBER', 'STRING_LITERAL',
-    'COLON', 'LPAREN', 'RPAREN', 'COMMA', 'DOT', 'ASSIGN',
-    'OTHER',
-)
+# Token specification as regex patterns
+TOKEN_SPECIFICATION = [
+    ('CLASS',      r'class\b'),
+    ('IDENTIFIER', r'[a-zA-Z_][a-zA-Z0-9_]*'),
+    ('COLON',      r':'),
+    ('LPAREN',     r'\('),
+    ('RPAREN',     r'\)'),
+    ('COMMA',      r','),
+    ('NEWLINE',    r'\n'),
+    ('SKIP',       r'[ \t\r]+'),  # Skip spaces, tabs, carriage returns
+    ('OTHER',      r'.'),         # Any other character
+]
 
-reserved = {
-    'class': 'CLASS',
-    'def': 'DEF',
-    'import': 'IMPORT',
-    'from': 'FROM',
-    'return': 'RETURN',
-    'pass': 'PASS',
-    'if': 'IF',
-}
+# Compile regex patterns
+token_regex = '|'.join(f'(?P<{name}>{pattern})' for name, pattern in TOKEN_SPECIFICATION)
+get_token = re.compile(token_regex).match
 
-t_EQ = r'=='
-t_ASSIGN = r'='  # Must come after t_EQ
+class Token:
+    def __init__(self, type_, value, lineno, column):
+        self.type = type_
+        self.value = value
+        self.lineno = lineno
+        self.column = column
 
-t_COLON = r':'
-t_LPAREN = r'\('
-t_RPAREN = r'\)'
-t_COMMA = r','
-t_DOT = r'\.'
+    def __repr__(self):
+        return f'Token({self.type}, {self.value!r}, line={self.lineno}, col={self.column})'
 
-t_ignore = ' \t'
-
-def t_IDENTIFIER(t):
-    r'[a-zA-Z_][a-zA-Z0-9_]*'
-    t.type = reserved.get(t.value, 'IDENTIFIER')
-    print(f"Token: {t.type}({t.value}) at line {t.lineno}")
-    return t
-
-def t_NUMBER(t):
-    r'\d+'
-    t.value = int(t.value)
-    print(f"Token: NUMBER({t.value}) at line {t.lineno}")
-    return t
-
-def t_STRING_LITERAL(t):
-    r'(\"([^\\\n]|(\\.))*?\")|(\'([^\\\n]|(\\.))*?\')'
-    print(f"Token: STRING_LITERAL({t.value}) at line {t.lineno}")
-    return t
-
-def t_NEWLINE(t):
-    r'\n+'
-    t.lexer.lineno += len(t.value)
-    # Return newline token if needed
-    # return t
-
-def t_OTHER(t):
-    r'.'
-    # For any other single character not matched above
-    # print(f"Token: OTHER({t.value}) at line {t.lineno}")
-    return t
-
-def t_error(t):
-    print(f"Illegal character {t.value[0]!r} at line {t.lineno}")
-    t.lexer.skip(1)
-
-lexer = lex.lex()
-
-# --- Precedence ---
-
-precedence = (
-    ('left', 'COMMA'),
-    ('right', 'ASSIGN'),
-    ('left', 'EQ'),
-    ('left', 'DOT'),
-)
+def lex(text):
+    """Simple lexer generator yielding tokens."""
+    lineno = 1
+    pos = 0
+    mo = get_token(text, pos)
+    while mo is not None:
+        typ = mo.lastgroup
+        val = mo.group(typ)
+        if typ == 'NEWLINE':
+            lineno += 1
+            pos = mo.end()
+            mo = get_token(text, pos)
+            continue
+        elif typ == 'SKIP':
+            pos = mo.end()
+            mo = get_token(text, pos)
+            continue
+        else:
+            column = mo.start() - text.rfind('\n', 0, mo.start())
+            yield Token(typ, val, lineno, column)
+        pos = mo.end()
+        mo = get_token(text, pos)
+    yield Token('EOF', '', lineno, pos)
 
 # --- Parser ---
 
-def p_program(p):
-    '''program : segment_list'''
-    p[0] = p[1]
-
-def p_segment_list(p):
-    '''segment_list : segment_list segment
-                    | segment'''
-    if len(p) == 3:
-        p[0] = p[1] + [p[2]]
-    else:
-        p[0] = [p[1]]
-
-def p_segment(p):
-    '''segment : misc_list class_def misc_list
-               | misc_list'''
-    if len(p) == 4:
-        p[0] = ('segment', p[1], p[2], p[3])
-    else:
-        p[0] = ('segment', p[1])
-
-def p_misc_list(p):
-    '''misc_list : misc_list misc
-                 | misc'''
-    if len(p) == 3:
-        p[0] = p[1] + [p[2]]
-    else:
-        p[0] = [p[1]]
-
-def p_class_def(p):
-    '''class_def : CLASS IDENTIFIER inheritance_opt COLON suite_opt'''
-    p[0] = ('class_def', p[2], p[3], p[5])
-
-def p_inheritance_opt(p):
-    '''inheritance_opt : LPAREN base_classes RPAREN
-                       | empty'''
-    if len(p) == 4:
-        p[0] = p[2]
-    else:
-        p[0] = []
-
-def p_base_classes(p):
-    '''base_classes : IDENTIFIER base_class_tail'''
-    p[0] = [p[1]] + p[2]
-
-def p_base_class_tail(p):
-    '''base_class_tail : COMMA IDENTIFIER base_class_tail
-                       | empty'''
-    if len(p) == 4:
-        p[0] = [p[2]] + p[3]
-    else:
-        p[0] = []
-
-def p_suite_opt(p):
-    '''suite_opt : suite
-                 | empty'''
-    p[0] = p[1] if len(p) > 1 else []
-
-def p_suite(p):
-    '''suite : statement
-             | suite statement'''
-    if len(p) == 3:
-        p[0] = p[1] + [p[2]]
-    else:
-        p[0] = [p[1]]
-
-def p_statement(p):
-    '''statement : misc
-                 | function_def
-                 | class_def'''
-    p[0] = p[1]
-
-def p_function_def(p):
-    '''function_def : DEF IDENTIFIER LPAREN parameters_opt RPAREN COLON suite_opt'''
-    p[0] = ('function_def', p[2], p[4], p[7])
-
-def p_parameters_opt(p):
-    '''parameters_opt : parameters
-                      | empty'''
-    p[0] = p[1] if len(p) > 1 else []
-
-def p_parameters(p):
-    '''parameters : IDENTIFIER parameter_tail'''
-    p[0] = [p[1]] + p[2]
-
-def p_parameter_tail(p):
-    '''parameter_tail : COMMA IDENTIFIER parameter_tail
-                      | empty'''
-    if len(p) == 4:
-        p[0] = [p[2]] + p[3]
-    else:
-        p[0] = []
-
-def p_misc(p):
-    '''misc : IDENTIFIER
-            | NUMBER
-            | STRING_LITERAL
-            | COLON
-            | LPAREN
-            | RPAREN
-            | COMMA
-            | DOT
-            | ASSIGN
-            | EQ
-            | OTHER'''
-    p[0] = ('misc', p[1])
-
-def p_empty(p):
-    'empty :'
+class ParserError(Exception):
     pass
 
-def p_error(p):
-    if p:
-        print(f"Syntax error at token {p.type}({p.value!r}) at line {p.lineno}")
-    else:
-        print("Syntax error at EOF")
+class Parser:
+    def __init__(self, tokens):
+        self.tokens = list(tokens)
+        self.pos = 0
+        self.current_token = self.tokens[self.pos]
 
-parser = yacc.yacc(debug=True)
+    def error(self, msg='Syntax error'):
+        raise ParserError(f'{msg} at line {self.current_token.lineno} col {self.current_token.column}')
+
+    def advance(self):
+        self.pos += 1
+        if self.pos < len(self.tokens):
+            self.current_token = self.tokens[self.pos]
+        else:
+            self.current_token = Token('EOF', '', self.current_token.lineno, self.current_token.column)
+
+    def expect(self, token_type):
+        if self.current_token.type == token_type:
+            val = self.current_token.value
+            self.advance()
+            return val
+        else:
+            self.error(f'Expected token {token_type}, got {self.current_token.type}')
+
+    def parse(self):
+        return self.program()
+
+    # program : segment_list
+    def program(self):
+        segments = self.segment_list()
+        return segments
+
+    # segment_list : segment_list segment | segment
+    def segment_list(self):
+        segments = []
+        while self.current_token.type != 'EOF':
+            segment = self.segment()
+            segments.append(segment)
+        return segments
+
+    # segment : class_def | misc
+    def segment(self):
+        if self.current_token.type == 'CLASS':
+            return self.class_def()
+        else:
+            return self.misc()
+
+    # class_def : CLASS IDENTIFIER inheritance_opt COLON
+    def class_def(self):
+        self.expect('CLASS')
+        class_name = self.expect('IDENTIFIER')
+        bases = self.inheritance_opt()
+        self.expect('COLON')
+        print("Found a class definition:", class_name)  # Debug print
+        return ('class_def', class_name, bases)
+
+    # inheritance_opt : LPAREN base_classes RPAREN | empty
+    def inheritance_opt(self):
+        if self.current_token.type == 'LPAREN':
+            self.expect('LPAREN')
+            bases = self.base_classes()
+            self.expect('RPAREN')
+            return bases
+        else:
+            return []
+
+    # base_classes : IDENTIFIER base_class_tail
+    def base_classes(self):
+        bases = [self.expect('IDENTIFIER')]
+        bases.extend(self.base_class_tail())
+        return bases
+
+    # base_class_tail : COMMA IDENTIFIER base_class_tail | empty
+    def base_class_tail(self):
+        bases = []
+        while self.current_token.type == 'COMMA':
+            self.expect('COMMA')
+            bases.append(self.expect('IDENTIFIER'))
+        return bases
+
+    # misc : IDENTIFIER | OTHER
+    def misc(self):
+        if self.current_token.type == 'IDENTIFIER':
+            val = self.expect('IDENTIFIER')
+            return ('misc', val)
+        elif self.current_token.type == 'OTHER':
+            val = self.expect('OTHER')
+            return ('misc', val)
+        else:
+            self.error('Expected IDENTIFIER or OTHER')
+
+# --- Example usage ---
+
+if __name__ == '__main__':
+    code = '''
+    class MyClass(Base1, Base2):
+    some_other_text
+    '''
+    tokens = lex(code)
+    parser = Parser(tokens)
+    ast = parser.parse()
+    print('AST:', ast)

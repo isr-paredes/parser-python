@@ -10,15 +10,6 @@ def is_oop_code(parse_tree):
     if isinstance(parse_tree, tuple):
         if parse_tree[0] == 'class_def':
             return True
-        # Recursively check children
-        for child in parse_tree[1:]:
-            if isinstance(child, list):
-                for item in child:
-                    if is_oop_code(item):
-                        return True
-            else:
-                if is_oop_code(child):
-                    return True
     elif isinstance(parse_tree, list):
         for item in parse_tree:
             if is_oop_code(item):

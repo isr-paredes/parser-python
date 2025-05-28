@@ -1,4 +1,5 @@
-<program> -> <segment>+
+<program> -> <segment>
+           | <segment> <program>
 <segment> -> <misc>* <class_def> <misc>*
 <class_def> -> <class> <identifier> <colon> <suite>
             |  <class> <identifier> <lparen> <identifier> <rparen> <colon> <suite>
