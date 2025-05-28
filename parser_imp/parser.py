@@ -4,12 +4,13 @@ import ply.yacc as yacc
 # --- Lexer ---
 
 tokens = (
-    'CLASS', 'DEF', 'IMPORT', 'FROM', 'RETURN', 'PASS',
+    'EQ',  # ==
+    'CLASS', 'DEF', 'IMPORT', 'FROM', 'RETURN', 'PASS', 'IF',
     'IDENTIFIER', 'NUMBER', 'STRING_LITERAL',
     'COLON', 'LPAREN', 'RPAREN', 'COMMA', 'DOT', 'ASSIGN',
+    'OTHER',
 )
 
-# Keywords
 reserved = {
     'class': 'CLASS',
     'def': 'DEF',
@@ -17,40 +18,63 @@ reserved = {
     'from': 'FROM',
     'return': 'RETURN',
     'pass': 'PASS',
+    'if': 'IF',
 }
+
+t_EQ = r'=='
+t_ASSIGN = r'='  # Must come after t_EQ
 
 t_COLON = r':'
 t_LPAREN = r'\('
 t_RPAREN = r'\)'
 t_COMMA = r','
 t_DOT = r'\.'
-t_ASSIGN = r'='
 
 t_ignore = ' \t'
 
 def t_IDENTIFIER(t):
     r'[a-zA-Z_][a-zA-Z0-9_]*'
     t.type = reserved.get(t.value, 'IDENTIFIER')
+    print(f"Token: {t.type}({t.value}) at line {t.lineno}")
     return t
 
 def t_NUMBER(t):
     r'\d+'
     t.value = int(t.value)
+    print(f"Token: NUMBER({t.value}) at line {t.lineno}")
     return t
 
 def t_STRING_LITERAL(t):
     r'(\"([^\\\n]|(\\.))*?\")|(\'([^\\\n]|(\\.))*?\')'
+    print(f"Token: STRING_LITERAL({t.value}) at line {t.lineno}")
     return t
 
-def t_newline(t):
+def t_NEWLINE(t):
     r'\n+'
     t.lexer.lineno += len(t.value)
+    # Return newline token if needed
+    # return t
+
+def t_OTHER(t):
+    r'.'
+    # For any other single character not matched above
+    # print(f"Token: OTHER({t.value}) at line {t.lineno}")
+    return t
 
 def t_error(t):
-    print(f"Illegal character {t.value[0]!r}")
+    print(f"Illegal character {t.value[0]!r} at line {t.lineno}")
     t.lexer.skip(1)
 
 lexer = lex.lex()
+
+# --- Precedence ---
+
+precedence = (
+    ('left', 'COMMA'),
+    ('right', 'ASSIGN'),
+    ('left', 'EQ'),
+    ('left', 'DOT'),
+)
 
 # --- Parser ---
 
@@ -60,26 +84,30 @@ def p_program(p):
 
 def p_segment_list(p):
     '''segment_list : segment_list segment
-                    | empty'''
+                    | segment'''
     if len(p) == 3:
         p[0] = p[1] + [p[2]]
     else:
-        p[0] = []
+        p[0] = [p[1]]
 
 def p_segment(p):
-    '''segment : misc_list class_def misc_list'''
-    p[0] = ('segment', p[1], p[2], p[3])
+    '''segment : misc_list class_def misc_list
+               | misc_list'''
+    if len(p) == 4:
+        p[0] = ('segment', p[1], p[2], p[3])
+    else:
+        p[0] = ('segment', p[1])
 
 def p_misc_list(p):
     '''misc_list : misc_list misc
-                 | empty'''
+                 | misc'''
     if len(p) == 3:
         p[0] = p[1] + [p[2]]
     else:
-        p[0] = []
+        p[0] = [p[1]]
 
 def p_class_def(p):
-    '''class_def : CLASS IDENTIFIER inheritance_opt COLON suite'''
+    '''class_def : CLASS IDENTIFIER inheritance_opt COLON suite_opt'''
     p[0] = ('class_def', p[2], p[3], p[5])
 
 def p_inheritance_opt(p):
@@ -91,58 +119,38 @@ def p_inheritance_opt(p):
         p[0] = []
 
 def p_base_classes(p):
-    '''base_classes : IDENTIFIER
-                    | base_classes COMMA IDENTIFIER'''
-    if len(p) == 2:
-        p[0] = [p[1]]
-    else:
-        p[0] = p[1] + [p[3]]
+    '''base_classes : IDENTIFIER base_class_tail'''
+    p[0] = [p[1]] + p[2]
 
-def p_misc(p):
-    '''misc : import_stmt
-            | function_def
-            | statement'''
-    p[0] = p[1]
-
-def p_import_stmt(p):
-    '''import_stmt : IMPORT IDENTIFIER import_dots_opt
-                   | FROM IDENTIFIER import_dots_opt IMPORT IDENTIFIER import_id_list_opt'''
-    if p[1] == 'import':
-        p[0] = ('import', p[2], p[3])
-    else:
-        p[0] = ('from_import', p[2], p[3], p[5], p[6])
-
-def p_import_dots_opt(p):
-    '''import_dots_opt : import_dots
+def p_base_class_tail(p):
+    '''base_class_tail : COMMA IDENTIFIER base_class_tail
                        | empty'''
-    p[0] = p[1] if len(p) > 1 else []
-
-def p_import_dots(p):
-    '''import_dots : import_dots DOT IDENTIFIER
-                   | DOT IDENTIFIER'''
     if len(p) == 4:
-        p[0] = p[1] + [p[3]]
-    else:
-        p[0] = [p[2]]
-
-def p_import_id_list_opt(p):
-    '''import_id_list_opt : COMMA import_id_list
-                          | empty'''
-    if len(p) == 3:
-        p[0] = p[2]
+        p[0] = [p[2]] + p[3]
     else:
         p[0] = []
 
-def p_import_id_list(p):
-    '''import_id_list : IDENTIFIER
-                      | import_id_list COMMA IDENTIFIER'''
-    if len(p) == 2:
-        p[0] = [p[1]]
+def p_suite_opt(p):
+    '''suite_opt : suite
+                 | empty'''
+    p[0] = p[1] if len(p) > 1 else []
+
+def p_suite(p):
+    '''suite : statement
+             | suite statement'''
+    if len(p) == 3:
+        p[0] = p[1] + [p[2]]
     else:
-        p[0] = p[1] + [p[3]]
+        p[0] = [p[1]]
+
+def p_statement(p):
+    '''statement : misc
+                 | function_def
+                 | class_def'''
+    p[0] = p[1]
 
 def p_function_def(p):
-    '''function_def : DEF IDENTIFIER LPAREN parameters_opt RPAREN COLON suite'''
+    '''function_def : DEF IDENTIFIER LPAREN parameters_opt RPAREN COLON suite_opt'''
     p[0] = ('function_def', p[2], p[4], p[7])
 
 def p_parameters_opt(p):
@@ -151,48 +159,30 @@ def p_parameters_opt(p):
     p[0] = p[1] if len(p) > 1 else []
 
 def p_parameters(p):
-    '''parameters : IDENTIFIER
-                  | parameters COMMA IDENTIFIER'''
-    if len(p) == 2:
-        p[0] = [p[1]]
+    '''parameters : IDENTIFIER parameter_tail'''
+    p[0] = [p[1]] + p[2]
+
+def p_parameter_tail(p):
+    '''parameter_tail : COMMA IDENTIFIER parameter_tail
+                      | empty'''
+    if len(p) == 4:
+        p[0] = [p[2]] + p[3]
     else:
-        p[0] = p[1] + [p[3]]
+        p[0] = []
 
-def p_statement(p):
-    '''statement : attribute_as
-                 | simple_stmt
-                 | function_def
-                 | class_def'''
-    p[0] = p[1]
-
-def p_attribute_as(p):
-    '''attribute_as : IDENTIFIER ASSIGN expression'''
-    p[0] = ('assign', p[1], p[3])
-
-def p_simple_stmt(p):
-    '''simple_stmt : RETURN expression
-                   | expression
-                   | PASS'''
-    if len(p) == 3:
-        p[0] = ('return', p[2])
-    else:
-        p[0] = p[1]
-
-def p_expression(p):
-    '''expression : IDENTIFIER
-                  | literal'''
-    p[0] = p[1]
-
-def p_literal(p):
-    '''literal : NUMBER
-               | STRING_LITERAL'''
-    p[0] = p[1]
-
-def p_suite(p):
-    '''suite : suite statement
-             | statement
-    '''
-    p[0] = p[1:]
+def p_misc(p):
+    '''misc : IDENTIFIER
+            | NUMBER
+            | STRING_LITERAL
+            | COLON
+            | LPAREN
+            | RPAREN
+            | COMMA
+            | DOT
+            | ASSIGN
+            | EQ
+            | OTHER'''
+    p[0] = ('misc', p[1])
 
 def p_empty(p):
     'empty :'
@@ -200,8 +190,8 @@ def p_empty(p):
 
 def p_error(p):
     if p:
-        print(f"Syntax error at token {p.type}({p.value!r})")
+        print(f"Syntax error at token {p.type}({p.value!r}) at line {p.lineno}")
     else:
         print("Syntax error at EOF")
 
-parser = yacc.yacc()
+parser = yacc.yacc(debug=True)
