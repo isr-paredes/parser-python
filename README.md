@@ -1,11 +1,9 @@
-# How to run the parser flex parser.l
-## 
+# Python Object-Oriented Identifier
+This is the code for 
 
-flex parser.l && bison -d -t -v parser.y && g++ -o oop_parser lex.yy.c parser.tab.c
+## Dependencies
+Python
+Pandas (for the multi-file detection feature)
 
-## Step by step to compile
-flex parser.l
-bison -d -t -v parser.y
-gcc lex.yy.c parser.tab.c
-
+## Steps to run
 

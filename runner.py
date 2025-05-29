@@ -38,7 +38,7 @@ def main(filename):
 
 if __name__ == '__main__':
     if len(sys.argv) != 2:
-        print("Usage: python parser_runner.py <python_source_file>")
+        print("Usage: python runner.py <python_source_file>")
         sys.exit(1)
 
     main(sys.argv[1])
