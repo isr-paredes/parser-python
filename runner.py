@@ -1,5 +1,3 @@
-# parser_runner.py
-
 import sys
 from parser import Parser, lex  # Import the new Parser class and lex function
 
