@@ -1,0 +1,1 @@
+print([i+j for i in "ab" for j in "12"])

@@ -25,7 +25,9 @@ def bench_testing(testpath):
     results = []
 
     # Iterate over all .txt files in testpath
-    for filename in os.listdir(testpath):
+    test_files = os.listdir(testpath)
+    test_files.sort()
+    for filename in test_files:
         if filename.endswith('.txt'):
             filepath = os.path.join(testpath, filename)
             oop_found = analyze_file(filepath)
@@ -88,7 +90,7 @@ def main():
     tester_dir = 'tests'
     df = bench_testing(tester_dir)
 
-    true_labels = [1] * 100
+    true_labels = [1] * 95 + [0] * 95
 
     if len(true_labels) != len(df):
         print(f"Warning: Number of ground truth labels ({len(true_labels)}) "

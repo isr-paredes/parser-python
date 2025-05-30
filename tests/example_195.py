@@ -1,0 +1,1 @@
+print("apple" in ["banana", "apple", "cherry"])
