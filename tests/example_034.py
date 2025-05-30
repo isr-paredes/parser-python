@@ -1,0 +1,1 @@
+print(issubclass(Dog, Animal))

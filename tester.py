@@ -1,7 +1,6 @@
 import os
+import array
 import seaborn as sns
-import matplotlib
-matplotlib.use('TkAgg')
 import matplotlib.pyplot as plt
 import pandas as pd
 from parser import Parser, lex
@@ -89,7 +88,7 @@ def main():
     tester_dir = 'tests'
     df = bench_testing(tester_dir)
 
-    true_labels = [1, 1, 0, 1]
+    true_labels = [1] * 100
 
     if len(true_labels) != len(df):
         print(f"Warning: Number of ground truth labels ({len(true_labels)}) "
