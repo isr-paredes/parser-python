@@ -110,7 +110,7 @@ class Parser:
         class_name = self.expect('IDENTIFIER')
         bases = self.inheritance_opt()
         self.expect('COLON')
-        print("Found a class definition:", class_name)  # Debug print
+        #print("Found a class definition:", class_name)  # Debug print
         return ('class_def', class_name, bases)
 
     # inheritance_opt : LPAREN base_classes RPAREN | empty

@@ -1,8 +1,12 @@
 # Python Object-Oriented Identifier
 ## Dependencies
-Python
-Pandas (for the multi-file detection feature)
-Matplotlib and seaborn, for confusion matrix statistics.
+You can create a venv and install the dependencies from the **requirements.txt**
+``` bash
+python -m venv venv
+source venv/bin/activate
+python -m pip install -r requirements.txt
+```
+
 ## Steps to run
 To run the parser over an already pre-established set of files, run
 ```

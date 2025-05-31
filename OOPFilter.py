@@ -14,9 +14,7 @@ def is_oop_code(parse_tree):
                 return True
     return False
 
-def main(filename):
-    with open(filename, 'r') as f:
-        code = f.read()
+def OOP_filter(code):
 
     # Tokenize and parse the code
     tokens = lex(code)
@@ -24,21 +22,16 @@ def main(filename):
     try:
         parse_result = parser.parse()
     except Exception as e:
-        print(f"Parsing failed: {e}")
-        return
+        #print(f"Parsing failed: {e}")
+        return -1
 
     if parse_result is None:
-        print("Parsing failed or no parse tree generated.")
-        return
+        #print("Parsing failed or no parse tree generated.")
+        return -1
 
     if is_oop_code(parse_result):
-        print(f"File '{filename}' contains OOP constructs (class definitions).")
+        return 1
+        #print(f"File '{filename}' contains OOP constructs (class definitions).")
     else:
-        print(f"File '{filename}' does NOT contain OOP constructs.")
-
-if __name__ == '__main__':
-    if len(sys.argv) != 2:
-        print("Usage: python runner.py <python_source_file>")
-        sys.exit(1)
-
-    main(sys.argv[1])
+        return 0
+        #print(f"File '{filename}' does NOT contain OOP constructs.")
